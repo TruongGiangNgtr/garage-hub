@@ -59,3 +59,8 @@ nunit-*.xml
 # Local/secret config
 appsettings.Development.json
 appsettings.*.local.json
+
+# Per-machine IDE files
+*.user
+*.suo
+.vs/
