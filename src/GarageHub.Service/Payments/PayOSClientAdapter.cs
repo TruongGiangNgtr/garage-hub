@@ -39,7 +39,8 @@ public class PayOSClientAdapter : IPayOSClient
     public async Task<PayOSPaymentInfo> GetPaymentStatusAsync(long orderCode, CancellationToken cancellationToken = default)
     {
         var link = await _client.Value.PaymentRequests.GetAsync(orderCode);
-        return new PayOSPaymentInfo(MapStatus(link.Status), link.AmountPaid);
+        var reference = link.Transactions?.Select(x => x.Reference).FirstOrDefault(r => !string.IsNullOrWhiteSpace(r));
+        return new PayOSPaymentInfo(MapStatus(link.Status), link.AmountPaid, reference);
     }
 
     public async Task CancelPaymentLinkAsync(long orderCode, string reason, CancellationToken cancellationToken = default)

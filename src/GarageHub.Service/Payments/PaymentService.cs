@@ -68,7 +68,7 @@ public class PaymentService : IPaymentService
         }
     }
 
-    public async Task ConfirmPaymentAsync(long orderCode, string reference, CancellationToken cancellationToken = default)
+    public async Task ConfirmPaymentAsync(long orderCode, string? reference, CancellationToken cancellationToken = default)
     {
         if (orderCode is < 1 or > int.MaxValue)
         {
@@ -95,11 +95,81 @@ public class PaymentService : IPaymentService
             return;
         }
 
+        reference ??= info.Reference;
+        if (reference is null)
+        {
+            _logger.LogWarning("Payment {PaymentId} confirmed without a PayOS reference", paymentId);
+        }
+
         var result = await _paymentRepository.ConfirmAsync(paymentId, reference, VietnamClock.Now, cancellationToken);
         if (result == PaymentConfirmResult.ConfirmedBookingNotPending)
         {
             _logger.LogWarning(
                 "Payment {PaymentId} was paid but its booking is no longer Pending; manual handling needed", paymentId);
         }
+    }
+
+    public async Task<PaymentResultDto> HandleReturnAsync(long orderCode, CancellationToken cancellationToken = default)
+    {
+        var paymentId = ToPaymentId(orderCode);
+        var payment = await _paymentRepository.GetByIdAsync(paymentId, cancellationToken)
+            ?? throw new NotFoundException("Không tìm thấy thanh toán");
+
+        if (payment.Status != PaymentStatus.Confirmed)
+        {
+            try
+            {
+                await ConfirmPaymentAsync(orderCode, null, cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // Customer sees "processing"; never leak PayOS errors to them.
+                _logger.LogError(ex, "Return fallback failed for payment {PaymentId}", paymentId);
+            }
+        }
+
+        return await GetResultAsync(paymentId, cancellationToken);
+    }
+
+    public async Task<PaymentResultDto> HandleCancelAsync(long orderCode, CancellationToken cancellationToken = default)
+    {
+        var paymentId = ToPaymentId(orderCode);
+        var payment = await _paymentRepository.GetByIdAsync(paymentId, cancellationToken)
+            ?? throw new NotFoundException("Không tìm thấy thanh toán");
+
+        if (payment.Status == PaymentStatus.Pending)
+        {
+            try
+            {
+                // Query-string values are never trusted: only PayOS saying Cancelled releases the slot.
+                var info = await _payOSClient.GetPaymentStatusAsync(orderCode, cancellationToken);
+                if (info.Status == PayOSPaymentStatus.Cancelled)
+                {
+                    await _paymentRepository.CancelPendingAsync(paymentId, cancellationToken);
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogError(ex, "Cancel check failed for payment {PaymentId}", paymentId);
+            }
+        }
+
+        return await GetResultAsync(paymentId, cancellationToken);
+    }
+
+    private static int ToPaymentId(long orderCode)
+    {
+        if (orderCode is < 1 or > int.MaxValue)
+        {
+            throw new ValidationException("Mã đơn hàng không hợp lệ");
+        }
+        return (int)orderCode;
+    }
+
+    private async Task<PaymentResultDto> GetResultAsync(int paymentId, CancellationToken cancellationToken)
+    {
+        var payment = await _paymentRepository.GetByIdAsync(paymentId, cancellationToken)
+            ?? throw new NotFoundException("Không tìm thấy thanh toán");
+        return new PaymentResultDto(payment.Status, payment.Booking.Status, payment.Amount);
     }
 }

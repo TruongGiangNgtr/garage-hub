@@ -15,11 +15,12 @@ public class PaymentRepository : IPaymentRepository
 
     public Task<Payment?> GetByIdAsync(int paymentId, CancellationToken cancellationToken = default)
         => _context.Payments
+            .AsNoTracking()
             .Include(p => p.Booking)
             .FirstOrDefaultAsync(p => p.Id == paymentId, cancellationToken);
 
     public async Task<PaymentConfirmResult> ConfirmAsync(
-        int paymentId, string reference, DateTime now, CancellationToken cancellationToken = default)
+        int paymentId, string? reference, DateTime now, CancellationToken cancellationToken = default)
     {
         await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
 
@@ -62,7 +63,8 @@ public class PaymentRepository : IPaymentRepository
         if (bookingId is null) return;
 
         await _context.ServiceBookings
-            .Where(b => b.Id == bookingId && b.Status == BookingStatus.Pending)
+            .Where(b => b.Id == bookingId && b.Status == BookingStatus.Pending
+                && !_context.Payments.Any(p => p.BookingId == b.Id && p.Status == PaymentStatus.Pending))
             .ExecuteUpdateAsync(s => s.SetProperty(b => b.Status, BookingStatus.Canceled), cancellationToken);
     }
 }
