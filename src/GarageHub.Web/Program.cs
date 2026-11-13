@@ -8,6 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 builder.Services.AddRepositoryLayer(builder.Configuration);
 builder.Services.AddServiceLayer();
+builder.Services.AddPaymentModule(builder.Configuration);
 
 var app = builder.Build();
 

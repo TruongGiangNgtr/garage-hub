@@ -1,0 +1,23 @@
+@model GarageHub.Common.Dtos.Payment.PaymentResultDto
+@{ ViewData["Title"] = "Kết quả thanh toán"; }
+@using GarageHub.Common.Enums
+@if (Model.PaymentStatus == PaymentStatus.Confirmed && Model.BookingStatus == BookingStatus.Confirmed)
+{
+    <h2>Đặt cọc thành công</h2>
+}
+else if (Model.PaymentStatus == PaymentStatus.Pending)
+{
+    <meta http-equiv="refresh" content="5" />
+    <h2>Đang xử lý</h2>
+    <p>Hệ thống đang chờ xác nhận thanh toán, trang sẽ tự tải lại.</p>
+}
+else if (Model.PaymentStatus == PaymentStatus.Confirmed)
+{
+    <h2>Đã nhận thanh toán</h2>
+    <p>Lịch hẹn không còn hiệu lực, nhân viên garage sẽ liên hệ bạn.</p>
+}
+else
+{
+    <h2>Thanh toán không thành công hoặc đã hết hạn</h2>
+}
+<p>Số tiền: @Model.Amount.ToString("N0") đ</p>
