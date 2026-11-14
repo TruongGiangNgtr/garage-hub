@@ -1,0 +1,86 @@
+@model GarageHub.Common.Dtos.User.UserPageDto
+@using GarageHub.Common.Enums
+@using GarageHub.Web.Extensions
+@{
+    ViewData["Title"] = "Quản lý người dùng";
+    var currentUserId = User.GetUserId();
+}
+
+<h2>Quản lý người dùng</h2>
+
+@if (TempData["Success"] is string success)
+{
+    <div class="alert alert-success">@success</div>
+}
+@if (TempData["Error"] is string error)
+{
+    <div class="alert alert-danger">@error</div>
+}
+
+<form asp-action="Index" method="get" class="row g-2 mb-3">
+    <div class="col-auto">
+        <input type="text" name="search" value="@Model.Search" class="form-control" placeholder="Tìm theo email hoặc tên" />
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-primary">Tìm</button>
+    </div>
+</form>
+
+<p class="text-muted">Tổng: @Model.TotalCount người dùng</p>
+
+<table class="table table-sm align-middle">
+    <thead>
+        <tr>
+            <th>Id</th>
+            <th>Họ tên</th>
+            <th>Email</th>
+            <th>Ngày tạo</th>
+            <th>Role</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var user in Model.Items)
+        {
+            <tr>
+                <td>@user.Id</td>
+                <td>@user.FullName</td>
+                <td>@user.Email</td>
+                <td>@user.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td>
+                <td>
+                    @if (user.Id == currentUserId)
+                    {
+                        <span>@user.Role (bạn)</span>
+                    }
+                    else
+                    {
+                        <form asp-action="ChangeRole" asp-route-id="@user.Id" method="post" class="d-flex gap-2">
+                            <input type="hidden" name="search" value="@Model.Search" />
+                            <input type="hidden" name="page" value="@Model.Page" />
+                            <select name="role" class="form-select form-select-sm w-auto">
+                                @foreach (var role in Enum.GetValues<UserRole>())
+                                {
+                                    <option value="@role" selected="@(role == user.Role)">@role</option>
+                                }
+                            </select>
+                            <button type="submit" class="btn btn-sm btn-outline-primary">Lưu</button>
+                        </form>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@if (Model.TotalPages > 1)
+{
+    <nav>
+        <ul class="pagination">
+            @for (var p = 1; p <= Model.TotalPages; p++)
+            {
+                <li class="page-item @(p == Model.Page ? "active" : "")">
+                    <a class="page-link" asp-action="Index" asp-route-search="@Model.Search" asp-route-page="@p">@p</a>
+                </li>
+            }
+        </ul>
+    </nav>
+}

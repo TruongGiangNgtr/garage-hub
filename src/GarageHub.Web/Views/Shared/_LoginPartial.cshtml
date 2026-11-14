@@ -1,0 +1,28 @@
+@using GarageHub.Common.Enums
+@using GarageHub.Web.Extensions
+
+<ul class="navbar-nav">
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        @if (User.GetUserRole() == UserRole.Admin)
+        {
+            <li class="nav-item">
+                <a class="nav-link text-dark" asp-controller="AdminUsers" asp-action="Index">Quản lý user</a>
+            </li>
+        }
+        <li class="nav-item">
+            <span class="nav-link text-dark">@User.Identity.Name</span>
+        </li>
+        <li class="nav-item">
+            <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline">
+                <button type="submit" class="nav-link btn btn-link text-dark">Đăng xuất</button>
+            </form>
+        </li>
+    }
+    else
+    {
+        <li class="nav-item">
+            <a class="nav-link text-dark" asp-controller="Account" asp-action="Login">Đăng nhập</a>
+        </li>
+    }
+</ul>

@@ -1,5 +1,6 @@
 using GarageHub.Repository;
 using GarageHub.Service;
+using GarageHub.Web.Auth;
 using GarageHub.Web.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -9,6 +10,7 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddRepositoryLayer(builder.Configuration);
 builder.Services.AddServiceLayer();
 builder.Services.AddPaymentModule(builder.Configuration);
+builder.Services.AddGarageHubAuthentication(builder.Configuration);
 
 var app = builder.Build();
 
@@ -24,6 +26,7 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseRouting();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapStaticAssets();
