@@ -13,4 +13,7 @@ public static class BookingSlots
 
     /// <summary>How long a Pending booking holds its slot before ExpiresAt.</summary>
     public static readonly TimeSpan PendingHoldDuration = TimeSpan.FromMinutes(15);
+
+    /// <summary>Fixed deposit (VND) charged when a booking is created.</summary>
+    public const decimal DepositAmount = 2000m;
 }

@@ -1,5 +1,6 @@
 using GarageHub.Repository;
 using GarageHub.Service;
+using GarageHub.Web.BackgroundJobs;
 using GarageHub.Web.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -9,6 +10,7 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddRepositoryLayer(builder.Configuration);
 builder.Services.AddServiceLayer();
 builder.Services.AddPaymentModule(builder.Configuration);
+builder.Services.AddHostedService<BookingExpirationJob>();
 
 var app = builder.Build();
 
