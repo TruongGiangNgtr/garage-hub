@@ -2,6 +2,9 @@ using System.Security.Claims;
 using System.Threading.RateLimiting;
 using GarageHub.Repository;
 using GarageHub.Service;
+using GarageHub.Service.Ocr;
+using GarageHub.Web.BackgroundJobs;
+using GarageHub.Web.Auth;
 using GarageHub.Web.Controllers;
 using GarageHub.Web.Middleware;
 using Microsoft.AspNetCore.Authentication;
@@ -90,6 +93,9 @@ builder.Services.AddAuthorization();
 builder.Services.AddRepositoryLayer(builder.Configuration);
 builder.Services.AddServiceLayer();
 builder.Services.AddPaymentModule(builder.Configuration);
+builder.Services.AddHostedService<BookingExpirationJob>();
+builder.Services.AddHttpClient<IPlateRecognizerClient, PlateRecognizerClient>();
+builder.Services.AddGarageHubAuthentication(builder.Configuration);
 
 var app = builder.Build();
 
