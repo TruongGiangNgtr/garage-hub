@@ -5,6 +5,7 @@ using GarageHub.Service;
 using GarageHub.Service.Ocr;
 using GarageHub.Web.BackgroundJobs;
 using GarageHub.Web.Auth;
+using GarageHub.Web.Controllers;
 using GarageHub.Web.Middleware;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -110,6 +111,7 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseRouting();
 
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 

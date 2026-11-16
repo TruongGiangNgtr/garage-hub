@@ -15,6 +15,9 @@ public static class DependencyInjection
         services.AddScoped<IBookingService, BookingService>();
         // IPlateRecognizerClient is registered with AddHttpClient in Program.cs (needs IHttpClientFactory from the Web SDK).
         services.AddScoped<IOcrService, OcrService>();
+        services.AddScoped<IVehicleService, VehicleService>();
+        services.AddScoped<IGarageService, GarageService>();
+        services.AddScoped<IBookingService, BookingService>();
         services.AddScoped<IUserService, UserService>();
         return services;
     }

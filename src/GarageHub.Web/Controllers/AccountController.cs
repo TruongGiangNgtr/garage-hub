@@ -1,112 +1,222 @@
 using System.Security.Claims;
-using GarageHub.Common.Dtos.User;
+using GarageHub.Common.Dtos.Account;
 using GarageHub.Common.Exceptions;
 using GarageHub.Service.Users;
-using GarageHub.Web.Auth;
-using GarageHub.Web.Models;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 
 namespace GarageHub.Web.Controllers;
 
 public class AccountController : Controller
 {
-    private readonly IUserService _userService;
-    private readonly IAuthenticationSchemeProvider _schemeProvider;
+    public const string ExternalCookieScheme = "External";
 
-    public AccountController(IUserService userService, IAuthenticationSchemeProvider schemeProvider)
+    private readonly IUserService _userService;
+    private readonly IConfiguration _configuration;
+
+    public AccountController(IUserService userService, IConfiguration configuration)
     {
         _userService = userService;
-        _schemeProvider = schemeProvider;
+        _configuration = configuration;
     }
 
-    [AllowAnonymous]
     [HttpGet]
-    public async Task<IActionResult> Login(string? returnUrl, bool failed = false)
+    [AllowAnonymous]
+    public IActionResult Login(string? error = null)
     {
         if (User.Identity?.IsAuthenticated == true)
         {
-            return LocalRedirect(SafeReturnUrl(returnUrl));
+            return RedirectToAction("Create", "Bookings");
         }
 
-        return View(await BuildLoginModelAsync(returnUrl,
-            failed ? "Đăng nhập Google không thành công hoặc đã bị hủy" : null));
+        if (error == "google_login_failed")
+        {
+            TempData["ErrorMessage"] = "Google sign in failed. Please try again.";
+        }
+
+        return View();
     }
 
-    // POST (with antiforgery) so another site cannot start a login on the user's behalf.
+    [HttpGet]
     [AllowAnonymous]
+    public IActionResult GoogleLogin(string? returnUrl = null)
+    {
+        if (User.Identity?.IsAuthenticated == true)
+        {
+            return RedirectToAction("Create", "Bookings");
+        }
+        if (!GoogleIsConfigured)
+        {
+            TempData["ErrorMessage"] = "Google sign in is not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in user-secrets.";
+            return RedirectToAction(nameof(Login));
+        }
+
+        var destination = Url.IsLocalUrl(returnUrl)
+            ? returnUrl!
+            : Url.Action("Create", "Bookings")!;
+        return ChallengeGoogle(destination);
+    }
+
+    [HttpGet]
+    [AllowAnonymous]
+    public async Task<IActionResult> CompleteProfile(string? returnUrl = null)
+    {
+        if (User.Identity?.IsAuthenticated == true)
+        {
+            return RedirectToAction("Create", "Bookings");
+        }
+
+        var external = await HttpContext.AuthenticateAsync(ExternalCookieScheme);
+        var profile = external.Succeeded ? GetGoogleProfile(external.Principal) : null;
+        if (profile is null)
+        {
+            TempData["ErrorMessage"] = "Continue with Google before completing your profile.";
+            return RedirectToAction(nameof(Login));
+        }
+
+        return View(new GoogleProfileCompletionDto { Email = profile.Email, ReturnUrl = returnUrl });
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> GoogleLogin(string? returnUrl)
+    [AllowAnonymous]
+    public async Task<IActionResult> CompleteProfile(
+        GoogleProfileCompletionDto input, CancellationToken cancellationToken)
     {
-        if (await _schemeProvider.GetSchemeAsync(AuthSchemes.Google) is null)
+        var external = await HttpContext.AuthenticateAsync(ExternalCookieScheme);
+        var profile = external.Succeeded ? GetGoogleProfile(external.Principal) : null;
+        if (profile is null)
         {
-            return RedirectToAction(nameof(Login), new { returnUrl });
+            TempData["ErrorMessage"] = "Your Google session expired. Please try again.";
+            return RedirectToAction(nameof(Login));
         }
 
-        var properties = new AuthenticationProperties
+        input.Email = profile.Email;
+        ModelState.Remove(nameof(input.Email));
+        ModelState.Remove(nameof(input.ReturnUrl));
+        if (ModelState.IsValid)
         {
-            RedirectUri = Url.Action(nameof(GoogleCallback), new { returnUrl = SafeReturnUrl(returnUrl) })
-        };
-        return Challenge(properties, AuthSchemes.Google);
+            try
+            {
+                var user = await _userService.CreateGoogleCustomerAsync(
+                    profile.GoogleId, profile.Email, input.FullName, cancellationToken);
+                await SignInAsync(user);
+                await HttpContext.SignOutAsync(ExternalCookieScheme);
+                return LocalRedirect(GetBookingDestination(input.ReturnUrl));
+            }
+            catch (ConflictException ex)
+            {
+                ModelState.AddModelError(string.Empty, ex.Message);
+            }
+        }
+
+        input.Email = profile.Email;
+        return View(input);
     }
 
-    [AllowAnonymous]
     [HttpGet]
-    public async Task<IActionResult> GoogleCallback(string? returnUrl, CancellationToken cancellationToken)
+    [AllowAnonymous]
+    public async Task<IActionResult> ExternalLoginCallback(
+        string? returnUrl = null, CancellationToken cancellationToken = default)
     {
-        var result = await HttpContext.AuthenticateAsync(AuthSchemes.External);
-        if (!result.Succeeded || result.Principal is null)
+        var external = await HttpContext.AuthenticateAsync(ExternalCookieScheme);
+        var profile = external.Succeeded ? GetGoogleProfile(external.Principal) : null;
+        if (profile is null)
         {
-            return RedirectToAction(nameof(Login), new { returnUrl, failed = true });
+            await HttpContext.SignOutAsync(ExternalCookieScheme);
+            TempData["ErrorMessage"] = "Google sign in did not provide a verified email. Please try again.";
+            return RedirectToAction(nameof(Login));
         }
 
-        var external = result.Principal;
-        var info = new GoogleUserInfo(
-            external.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty,
-            external.FindFirstValue(ClaimTypes.Email) ?? string.Empty,
-            external.FindFirstValue(ClaimTypes.Name) ?? string.Empty);
-
-        UserDto user;
+        UserSessionDto? user;
         try
         {
-            user = await _userService.SignInWithGoogleAsync(info, cancellationToken);
+            user = await _userService.FindGoogleAccountAsync(
+                profile.GoogleId, profile.Email, profile.FullName, cancellationToken);
         }
-        catch (Exception ex) when (ex is ConflictException or ValidationException)
+        catch (ConflictException ex)
         {
-            await HttpContext.SignOutAsync(AuthSchemes.External);
-            return View(nameof(Login), await BuildLoginModelAsync(returnUrl, ex.Message));
+            await HttpContext.SignOutAsync(ExternalCookieScheme);
+            TempData["ErrorMessage"] = ex.Message;
+            return RedirectToAction(nameof(Login));
         }
 
-        await HttpContext.SignOutAsync(AuthSchemes.External);
-        await HttpContext.SignInAsync(
-            AuthSchemes.Cookie,
-            AuthClaims.CreatePrincipal(user),
-            new AuthenticationProperties { IsPersistent = true });
+        if (user is not null)
+        {
+            await SignInAsync(user);
+            await HttpContext.SignOutAsync(ExternalCookieScheme);
+            return LocalRedirect(GetBookingDestination(returnUrl));
+        }
 
-        return LocalRedirect(SafeReturnUrl(returnUrl));
+        return RedirectToAction(nameof(CompleteProfile), new { returnUrl });
     }
 
+    [Authorize]
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Logout()
     {
-        await HttpContext.SignOutAsync(AuthSchemes.Cookie);
+        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        await HttpContext.SignOutAsync(ExternalCookieScheme);
         return RedirectToAction("Index", "Home");
     }
 
-    [AllowAnonymous]
     [HttpGet]
+    [AllowAnonymous]
     public IActionResult AccessDenied() => View();
 
-    private async Task<LoginViewModel> BuildLoginModelAsync(string? returnUrl, string? errorMessage) => new()
+    private IActionResult ChallengeGoogle(string returnUrl)
     {
-        ReturnUrl = SafeReturnUrl(returnUrl),
-        GoogleEnabled = await _schemeProvider.GetSchemeAsync(AuthSchemes.Google) is not null,
-        ErrorMessage = errorMessage
-    };
+        var callback = Url.Action(nameof(ExternalLoginCallback), "Account", new { returnUrl })!;
+        return Challenge(
+            new AuthenticationProperties { RedirectUri = callback },
+            GoogleDefaults.AuthenticationScheme);
+    }
 
-    private string SafeReturnUrl(string? returnUrl)
-        => !string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl) ? returnUrl : "/";
+    private string GetBookingDestination(string? returnUrl)
+        => Url.IsLocalUrl(returnUrl)
+            ? returnUrl!
+            : Url.Action("Create", "Bookings")!;
+
+    private bool GoogleIsConfigured
+        => !string.IsNullOrWhiteSpace(_configuration["GOOGLE_CLIENT_ID"])
+            && !string.IsNullOrWhiteSpace(_configuration["GOOGLE_CLIENT_SECRET"]);
+
+    private static GoogleProfile? GetGoogleProfile(ClaimsPrincipal? principal)
+    {
+        var googleId = principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+        var email = principal?.FindFirstValue(ClaimTypes.Email);
+        var fullName = principal?.FindFirstValue(ClaimTypes.Name);
+        var emailVerified = principal?.FindFirstValue("urn:google:email_verified");
+        if (string.IsNullOrWhiteSpace(googleId)
+            || string.IsNullOrWhiteSpace(email)
+            || !bool.TryParse(emailVerified, out var verified)
+            || !verified)
+        {
+            return null;
+        }
+
+        return new GoogleProfile(googleId, email, fullName ?? string.Empty);
+    }
+
+    private async Task SignInAsync(UserSessionDto user)
+    {
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new(ClaimTypes.Name, user.FullName),
+            new(ClaimTypes.Email, user.Email),
+            new(ClaimTypes.Role, user.Role.ToString())
+        };
+        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+        await HttpContext.SignInAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            new ClaimsPrincipal(identity));
+    }
+
+    private sealed record GoogleProfile(string GoogleId, string Email, string FullName);
 }
