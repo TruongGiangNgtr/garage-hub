@@ -1,0 +1,12 @@
+@model GarageHub.Common.Dtos.Garage.GarageInputDto
+@{
+    ViewData["Title"] = "Edit garage";
+}
+
+<h1>Edit garage</h1>
+<p>Average rating: @ViewBag.AvgRating (read-only)</p>
+<partial name="_Form" model="Model" />
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

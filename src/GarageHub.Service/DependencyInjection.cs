@@ -1,5 +1,9 @@
 using GarageHub.Service.Users;
 using Microsoft.Extensions.DependencyInjection;
+using GarageHub.Service.Bookings;
+using GarageHub.Service.Garages;
+using GarageHub.Service.Users;
+using GarageHub.Service.Vehicles;
 
 namespace GarageHub.Service;
 

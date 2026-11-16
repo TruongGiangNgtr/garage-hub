@@ -1,8 +1,59 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+@using GarageHub.Common.Dtos.Booking
+@{
+    ViewData["Title"] = "Home";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="text-end mb-3">
+    <a class="btn btn-outline-secondary" asp-controller="Admin" asp-action="Login">Admin Functions</a>
 </div>
+
+@if (User.Identity?.IsAuthenticated != true)
+{
+    <div class="text-center">
+        <h1 class="display-4">Welcome to GarageHub</h1>
+        <p>Book and manage vehicle service appointments.</p>
+        <a class="btn btn-primary" asp-controller="Account" asp-action="GoogleLogin">Login with Google</a>
+    </div>
+}
+else
+{
+    var bookings = ViewBag.Bookings as IReadOnlyList<BookingScheduleDto> ?? Array.Empty<BookingScheduleDto>();
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h1>Welcome, @User.Identity.Name</h1>
+            <p class="mb-0">Your service schedule</p>
+        </div>
+        <a class="btn btn-primary" asp-controller="Bookings" asp-action="Create">Add booking</a>
+    </div>
+
+    @if (bookings.Count == 0)
+    {
+        <div class="alert alert-info">You don't have any bookings yet.</div>
+    }
+    else
+    {
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Date and time</th>
+                    <th>Vehicle</th>
+                    <th>Garage</th>
+                    <th>Status</th>
+                    <th>Deposit</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var booking in bookings)
+            {
+                <tr>
+                    <td>@booking.ScheduledAt.ToString("yyyy-MM-dd HH:mm")</td>
+                    <td>@booking.PlateNumber</td>
+                    <td>@booking.GarageName</td>
+                    <td>@booking.Status</td>
+                    <td>@booking.DepositAmount.ToString("N0") VND</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    }
+}
