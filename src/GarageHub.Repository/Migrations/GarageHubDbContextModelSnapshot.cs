@@ -260,13 +260,6 @@ namespace GarageHub.Repository.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Email")
-                        .IsUnique();
-
-                    b.HasIndex("GoogleId")
-                        .IsUnique()
-                        .HasFilter("[GoogleId] IS NOT NULL");
-
                     b.ToTable("Users");
                 });
 
