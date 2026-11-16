@@ -1,5 +1,6 @@
 using GarageHub.Repository;
 using GarageHub.Service;
+using GarageHub.Service.Ocr;
 using GarageHub.Web.BackgroundJobs;
 using GarageHub.Web.Middleware;
 
@@ -11,6 +12,7 @@ builder.Services.AddRepositoryLayer(builder.Configuration);
 builder.Services.AddServiceLayer();
 builder.Services.AddPaymentModule(builder.Configuration);
 builder.Services.AddHostedService<BookingExpirationJob>();
+builder.Services.AddHttpClient<IPlateRecognizerClient, PlateRecognizerClient>();
 
 var app = builder.Build();
 
