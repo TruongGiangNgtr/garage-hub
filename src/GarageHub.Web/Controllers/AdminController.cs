@@ -73,7 +73,7 @@ public class AdminController : Controller
     public async Task<IActionResult> Logout()
     {
         await HttpContext.SignOutAsync(PasswordCookieScheme);
-        return RedirectToAction(nameof(Login));
+        return RedirectToAction("Index", "Home");
     }
 
     private static bool PasswordsMatch(string suppliedPassword, string configuredPassword)
