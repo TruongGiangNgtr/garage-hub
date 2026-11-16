@@ -1,0 +1,61 @@
+@model IReadOnlyList<GarageHub.Common.Dtos.Garage.GarageDto>
+@{
+    ViewData["Title"] = "Garages";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1>Garages</h1>
+    <div>
+        <a class="btn btn-primary" asp-action="Create">Add garage</a>
+        @if (ViewBag.HasPasswordAdminSession == true)
+        {
+            @* <form asp-controller="Admin" asp-action="Logout" method="post" asp-antiforgery="false" class="d-inline">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-outline-secondary"></button>
+            </form> *@
+        }
+    </div>
+</div>
+
+@if (TempData["StatusMessage"] is string statusMessage)
+{
+    <div class="alert alert-success">@statusMessage</div>
+}
+@if (TempData["ErrorMessage"] is string errorMessage)
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Address</th>
+            <th>Phone</th>
+            <th>Owner</th>
+            <th>Capacity / slot</th>
+            <th>Average rating</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach (var garage in Model)
+    {
+        <tr>
+            <td>@garage.Name</td>
+            <td>@garage.Address</td>
+            <td>@garage.Phone</td>
+            <td>@(garage.OwnerName ?? "Unassigned")</td>
+            <td>@garage.CapacityPerSlot</td>
+            <td>@garage.AvgRating</td>
+            <td class="text-nowrap">
+                <a class="btn btn-sm btn-outline-primary" asp-action="Edit" asp-route-id="@garage.Id">Edit</a>
+                <form asp-action="Delete" asp-route-id="@garage.Id" method="post" class="d-inline"
+                      onsubmit="return confirm('Delete this garage?');">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                </form>
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>

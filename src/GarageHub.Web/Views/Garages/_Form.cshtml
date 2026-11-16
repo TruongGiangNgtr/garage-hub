@@ -1,0 +1,35 @@
+@model GarageHub.Common.Dtos.Garage.GarageInputDto
+
+<form method="post">
+    @Html.AntiForgeryToken()
+    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+    <div class="mb-3">
+        <label asp-for="Name" class="form-label"></label>
+        <input asp-for="Name" class="form-control" />
+        <span asp-validation-for="Name" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Address" class="form-label"></label>
+        <input asp-for="Address" class="form-control" />
+        <span asp-validation-for="Address" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Phone" class="form-label"></label>
+        <input asp-for="Phone" class="form-control" />
+        <span asp-validation-for="Phone" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="OwnerId" class="form-label">Owner (optional)</label>
+        <select asp-for="OwnerId" asp-items="ViewBag.Owners" class="form-select">
+            <option value="">Unassigned</option>
+        </select>
+        <span asp-validation-for="OwnerId" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="CapacityPerSlot" class="form-label"></label>
+        <input asp-for="CapacityPerSlot" type="number" min="1" class="form-control" />
+        <span asp-validation-for="CapacityPerSlot" class="text-danger"></span>
+    </div>
+    <button type="submit" class="btn btn-primary">Save</button>
+    <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+</form>
