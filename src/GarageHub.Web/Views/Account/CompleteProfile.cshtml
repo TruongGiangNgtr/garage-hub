@@ -1,0 +1,36 @@
+@model GarageHub.Common.Dtos.Account.GoogleProfileCompletionDto
+@{
+    ViewData["Title"] = "Complete your profile";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-7 col-lg-6">
+        <h1>Complete your profile</h1>
+        @if (TempData["ErrorMessage"] is string errorMessage)
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+        <p>We received your verified email from Google. Enter your full name to create your account.</p>
+        <form method="post">
+            @Html.AntiForgeryToken()
+            @Html.HiddenFor(model => model.ReturnUrl)
+            @Html.ValidationSummary(true, "", new { @class = "text-danger mb-3" })
+            <div class="mb-3">
+                @Html.LabelFor(model => model.FullName, new { @class = "form-label" })
+                @Html.TextBoxFor(model => model.FullName, new { @class = "form-control", autocomplete = "name" })
+                @Html.ValidationMessageFor(model => model.FullName, "", new { @class = "text-danger" })
+            </div>
+            <div class="mb-3">
+                @Html.LabelFor(model => model.Email, new { @class = "form-label" })
+                @Html.TextBoxFor(model => model.Email, new { type = "email", @class = "form-control", @readonly = "readonly" })
+                @Html.ValidationMessageFor(model => model.Email, "", new { @class = "text-danger" })
+                <div class="form-text">This verified Google email will be used for your account.</div>
+            </div>
+            <button type="submit" class="btn btn-primary">Continue to booking</button>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

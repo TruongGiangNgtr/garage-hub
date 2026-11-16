@@ -25,4 +25,10 @@ public interface IBookingService
 
     /// <summary>Background cleanup: expired Pending bookings and their Pending payments -> Canceled.</summary>
     Task ExpirePendingBookingsAsync(CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<BookingScheduleDto>> GetScheduleForCustomerAsync(
+        int customerId, CancellationToken cancellationToken = default);
+
+    Task<int> CreatePendingBookingAsync(
+        int customerId, BookingInputDto input, CancellationToken cancellationToken = default);
 }

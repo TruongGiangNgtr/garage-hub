@@ -1,0 +1,81 @@
+@model GarageHub.Common.Dtos.Booking.BookingInputDto
+@using Microsoft.AspNetCore.Mvc.Rendering
+@{
+    ViewData["Title"] = "Book a schedule";
+}
+
+<h1>Book a schedule</h1>
+<p>A 50,000 VND deposit is charged at checkout. Your slot is held for 15 minutes while payment is pending.</p>
+<div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+@if (!ViewBag.HasVehicles)
+{
+    <div class="alert alert-warning">
+        Add a vehicle before booking. <a asp-controller="Vehicles" asp-action="Create">Add vehicle</a>
+    </div>
+}
+@if (!ViewBag.HasGarages)
+{
+    <div class="alert alert-warning">There are no garages available for booking yet.</div>
+}
+<form method="post">
+    @Html.AntiForgeryToken()
+    @Html.ValidationSummary(true, "", new { @class = "text-danger mb-3" })
+    <div class="mb-3">
+        @Html.LabelFor(model => model.VehicleId, "Vehicle", new { @class = "form-label" })
+        @Html.DropDownListFor(model => model.VehicleId,
+            (IEnumerable<SelectListItem>)ViewBag.Vehicles,
+            "Select a vehicle",
+            new { @class = "form-select" })
+        @Html.ValidationMessageFor(model => model.VehicleId, "", new { @class = "text-danger" })
+    </div>
+    <div class="mb-3">
+        <button type="button" class="btn btn-outline-secondary" id="scan-vehicle-button">
+            Scan vehicle image or credential (OCR coming later)
+        </button>
+        <input type="file" id="vehicle-image" accept="image/*,.pdf" class="d-none" />
+        <div id="scan-message" class="form-text" role="status"></div>
+    </div>
+    <div class="mb-3">
+        @Html.LabelFor(model => model.GarageId, "Garage", new { @class = "form-label" })
+        @Html.DropDownListFor(model => model.GarageId,
+            (IEnumerable<SelectListItem>)ViewBag.Garages,
+            "Select a garage",
+            new { @class = "form-select" })
+        @Html.ValidationMessageFor(model => model.GarageId, "", new { @class = "text-danger" })
+    </div>
+    <div class="mb-3">
+        @Html.LabelFor(model => model.ScheduledDate, "Date", new { @class = "form-label" })
+        @Html.TextBoxFor(model => model.ScheduledDate,
+            new { type = "date", min = ViewBag.MinimumDate, @class = "form-control" })
+        @Html.ValidationMessageFor(model => model.ScheduledDate, "", new { @class = "text-danger" })
+    </div>
+    <div class="mb-3">
+        @Html.LabelFor(model => model.SlotStart, "Time slot", new { @class = "form-label" })
+        @Html.DropDownListFor(model => model.SlotStart,
+            (IEnumerable<SelectListItem>)ViewBag.Slots,
+            "Select a time slot",
+            new { @class = "form-select" })
+        @Html.ValidationMessageFor(model => model.SlotStart, "", new { @class = "text-danger" })
+    </div>
+    @if (ViewBag.HasVehicles && ViewBag.HasGarages)
+    {
+        <button type="submit" class="btn btn-primary">Continue to checkout</button>
+    }
+    <a asp-controller="Home" asp-action="Index" class="btn btn-secondary">Cancel</a>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.getElementById("scan-vehicle-button")?.addEventListener("click", function () {
+            document.getElementById("vehicle-image").click();
+        });
+        document.getElementById("vehicle-image")?.addEventListener("change", function () {
+            if (this.files.length > 0) {
+                document.getElementById("scan-message").textContent =
+                    "Vehicle scanning is not available yet. Please select your vehicle from the list.";
+            }
+        });
+    </script>
+}

@@ -1,0 +1,23 @@
+@model GarageHub.Web.Models.AdminLoginViewModel
+@{
+    ViewData["Title"] = "Admin Functions";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <h1>Admin Functions</h1>
+        <p>Enter the admin password to manage garages.</p>
+        @Html.ValidationSummary(true, "", new { @class = "text-danger mb-3" })
+        <form asp-action="Login" method="post">
+            @Html.AntiForgeryToken()
+            @Html.HiddenFor(model => model.ReturnUrl)
+            <div class="mb-3">
+                @Html.LabelFor(model => model.Password, "Admin password", new { @class = "form-label" })
+                @Html.PasswordFor(model => model.Password, new { @class = "form-control", autocomplete = "current-password" })
+                @Html.ValidationMessageFor(model => model.Password, "", new { @class = "text-danger" })
+            </div>
+            <button type="submit" class="btn btn-primary">Continue</button>
+            <a asp-controller="Home" asp-action="Index" class="btn btn-secondary">Cancel</a>
+        </form>
+    </div>
+</div>

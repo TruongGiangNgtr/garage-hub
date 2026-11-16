@@ -1,0 +1,28 @@
+@model LoginViewModel
+@{ ViewData["Title"] = "Đăng nhập"; }
+
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-4">
+        <h2 class="mb-3">Đăng nhập</h2>
+
+        @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+        {
+            <div class="alert alert-danger">@Model.ErrorMessage</div>
+        }
+
+        @if (Model.GoogleEnabled)
+        {
+            <form asp-action="GoogleLogin" method="post">
+                <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+                <button type="submit" class="btn btn-outline-dark w-100">Đăng nhập bằng Google</button>
+            </form>
+        }
+        else
+        {
+            <div class="alert alert-warning">
+                Chưa cấu hình Google OAuth. Đặt <code>Authentication:Google:ClientId</code> và
+                <code>Authentication:Google:ClientSecret</code> bằng <code>dotnet user-secrets</code>.
+            </div>
+        }
+    </div>
+</div>

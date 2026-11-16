@@ -46,4 +46,10 @@ public interface IBookingRepository
     /// Pending payments of expired Pending bookings -> Canceled, then expired Pending bookings -> Canceled.
     /// </summary>
     Task<(int Payments, int Bookings)> ExpirePendingAsync(DateTime now, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<ServiceBooking>> GetScheduleForCustomerAsync(
+        int customerId, CancellationToken cancellationToken = default);
+
+    Task<int> CreatePendingBookingAsync(
+        ServiceBooking booking, Payment payment, DateTime now, CancellationToken cancellationToken = default);
 }
