@@ -17,9 +17,12 @@ public interface IBookingService
 
     Task<IReadOnlyList<BookingDto>> GetMyBookingsAsync(int userId, CancellationToken cancellationToken = default);
 
+    /// <summary>Creates a replacement PayOS checkout link for the user's active, unpaid Pending booking.</summary>
+    Task<string> GetPendingBookingCheckoutUrlAsync(int userId, int bookingId, CancellationToken cancellationToken = default);
+
     /// <summary>
-    /// Customer cancel. Pending/Confirmed -> Canceled (deposit is not refunded); already Canceled is a no-op.
-    /// Throws NotFoundException when the booking is not the user's, ConflictException when InProgress/Completed.
+    /// Customer cancel for unpaid Pending bookings; already Canceled is a no-op.
+    /// Throws NotFoundException when the booking is not the user's and ConflictException when it is not Pending.
     /// </summary>
     Task CancelBookingAsync(int userId, int bookingId, CancellationToken cancellationToken = default);
 

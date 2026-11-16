@@ -1,7 +1,15 @@
 @model GarageHub.Common.Dtos.Payment.PaymentResultDto
 @{ ViewData["Title"] = "Hủy thanh toán"; }
 @using GarageHub.Common.Enums
-@if (Model.PaymentStatus == PaymentStatus.Canceled)
+@{
+    var bookingPending = Model.BookingStatus == BookingStatus.Pending;
+}
+@if (bookingPending)
+{
+    <h2>Thanh toán chưa hoàn tất</h2>
+    <p>Lịch hẹn vẫn được giữ đến khi hết hạn. Bạn có thể thanh toán lại hoặc hủy lịch hẹn.</p>
+}
+else if (Model.PaymentStatus == PaymentStatus.Canceled)
 {
     <h2>Bạn đã hủy thanh toán, chỗ giữ đã được nhả</h2>
 }
@@ -25,3 +33,20 @@ else
     <h2>Thanh toán không thành công hoặc đã hết hạn</h2>
 }
 <p>Số tiền: @Model.Amount.ToString("N0") đ</p>
+<div class="d-flex flex-wrap gap-2 mb-3">
+    @if (bookingPending)
+    {
+        <form asp-controller="Booking" asp-action="PayNow" asp-route-id="@Model.BookingId" method="post">
+            <button type="submit" class="btn btn-primary">Pay Now</button>
+        </form>
+        <form asp-controller="Booking" asp-action="Cancel" asp-route-id="@Model.BookingId" method="post">
+            <button type="submit" class="btn btn-outline-danger">Cancel Booking</button>
+        </form>
+    }
+    else
+    {
+        <button type="button" class="btn btn-primary" disabled>Pay Now</button>
+        <button type="button" class="btn btn-outline-danger" disabled>Cancel Booking</button>
+    }
+    <a class="btn btn-secondary" asp-controller="Home" asp-action="Index">Back to Home</a>
+</div>

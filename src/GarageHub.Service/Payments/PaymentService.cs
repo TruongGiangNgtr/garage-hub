@@ -68,6 +68,43 @@ public class PaymentService : IPaymentService
         }
     }
 
+    public async Task<string> CreateReplacementCheckoutUrlAsync(
+        int paymentId, CancellationToken cancellationToken = default)
+    {
+        var payment = await _paymentRepository.GetByIdAsync(paymentId, cancellationToken)
+            ?? throw new NotFoundException("Không tìm thấy thanh toán");
+
+        if (payment.Status is not (PaymentStatus.Pending or PaymentStatus.Canceled)
+            || payment.Booking.Status != BookingStatus.Pending
+            || payment.Booking.ExpiresAt is null
+            || payment.Booking.ExpiresAt <= VietnamClock.Now)
+        {
+            throw new ConflictException("Thanh toán không còn hiệu lực hoặc booking đã hết hạn giữ chỗ");
+        }
+
+        if (payment.Status == PaymentStatus.Pending)
+        {
+            var link = await _payOSClient.GetPaymentStatusAsync(paymentId, cancellationToken);
+            if (link.Status == PayOSPaymentStatus.Paid)
+            {
+                await ConfirmPaymentAsync(paymentId, link.Reference, cancellationToken);
+                throw new ConflictException("Khoản thanh toán đã được ghi nhận; hãy tải lại trang chủ.");
+            }
+            if (link.Status == PayOSPaymentStatus.Pending)
+            {
+                await _payOSClient.CancelPaymentLinkAsync(paymentId, "Tao lien ket thanh toan moi", cancellationToken);
+            }
+            else if (link.Status is not (PayOSPaymentStatus.Cancelled or PayOSPaymentStatus.Expired))
+            {
+                throw new ConflictException("Liên kết thanh toán đang được xử lý và chưa thể tạo lại.");
+            }
+        }
+
+        var replacementPaymentId = await _paymentRepository.CreateReplacementPendingAsync(
+            paymentId, VietnamClock.Now, cancellationToken);
+        return await CreatePaymentLinkAsync(replacementPaymentId, cancellationToken);
+    }
+
     public async Task ConfirmPaymentAsync(long orderCode, string? reference, CancellationToken cancellationToken = default)
     {
         if (orderCode is < 1 or > int.MaxValue)
@@ -145,7 +182,7 @@ public class PaymentService : IPaymentService
                 var info = await _payOSClient.GetPaymentStatusAsync(orderCode, cancellationToken);
                 if (info.Status == PayOSPaymentStatus.Cancelled)
                 {
-                    await _paymentRepository.CancelPendingAsync(paymentId, cancellationToken);
+                    await _paymentRepository.CancelPaymentOnlyAsync(paymentId, cancellationToken);
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -170,6 +207,6 @@ public class PaymentService : IPaymentService
     {
         var payment = await _paymentRepository.GetByIdAsync(paymentId, cancellationToken)
             ?? throw new NotFoundException("Không tìm thấy thanh toán");
-        return new PaymentResultDto(payment.Status, payment.Booking.Status, payment.Amount);
+        return new PaymentResultDto(payment.Status, payment.Booking.Status, payment.Amount, payment.BookingId);
     }
 }

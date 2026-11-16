@@ -29,6 +29,10 @@ public interface IBookingRepository
     /// <summary>Bookings of all vehicles owned by the user, newest slot first (Vehicle and Garage loaded, no tracking).</summary>
     Task<IReadOnlyList<ServiceBooking>> GetByOwnerAsync(int ownerId, CancellationToken cancellationToken = default);
 
+    /// <summary>Returns the ID of the booking's latest payment while its Pending hold is active, or null.</summary>
+    Task<int?> GetPendingPaymentIdAsync(
+        int bookingId, DateTime now, CancellationToken cancellationToken = default);
+
     /// <summary>Returns the booking with its Vehicle loaded (no tracking), or null.</summary>
     Task<ServiceBooking?> GetWithVehicleAsync(int bookingId, CancellationToken cancellationToken = default);
 
@@ -36,8 +40,8 @@ public interface IBookingRepository
     Task<IReadOnlyList<int>> GetPendingPaymentIdsAsync(int bookingId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Conditional cancel in one transaction: booking Pending/Confirmed -> Canceled, then its Pending payments -> Canceled.
-    /// Returns false when the booking was not in a cancelable state (nothing changed).
+    /// Conditional cancel in one transaction: an unpaid Pending booking -> Canceled, then its Pending payments -> Canceled.
+    /// Returns false when the booking was not Pending (nothing changed).
     /// </summary>
     Task<bool> CancelAsync(int bookingId, CancellationToken cancellationToken = default);
 

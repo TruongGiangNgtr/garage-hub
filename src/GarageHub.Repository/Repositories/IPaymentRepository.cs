@@ -10,6 +10,12 @@ public interface IPaymentRepository
     /// <param name="reference">Bank transaction reference; may be null when PayOS did not provide one.</param>
     Task<PaymentConfirmResult> ConfirmAsync(int paymentId, string? reference, DateTime now, CancellationToken cancellationToken = default);
 
+    /// <summary>Replaces a canceled or Pending payment with a new Pending payment for the same active booking.</summary>
+    Task<int> CreateReplacementPendingAsync(int paymentId, DateTime now, CancellationToken cancellationToken = default);
+
+    /// <summary>Marks a payment canceled without releasing its booking hold.</summary>
+    Task CancelPaymentOnlyAsync(int paymentId, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Payments Pending -> Canceled, then the booking Pending -> Canceled only if it has no other Pending payment.
     /// Two separate idempotent updates (no shared transaction).

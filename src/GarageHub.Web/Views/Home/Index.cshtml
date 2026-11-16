@@ -1,6 +1,12 @@
 @using GarageHub.Common.Dtos.Booking
+@using GarageHub.Common.Enums
 @{
     ViewData["Title"] = "Home";
+}
+
+@if (TempData["Message"] is string message)
+{
+    <div class="alert alert-success">@message</div>
 }
 
 <div class="text-end mb-3">
@@ -32,9 +38,21 @@ else
     }
     else
     {
+        <div class="mb-3">
+            <label for="booking-status-filter" class="form-label">Filter by status</label>
+            <select id="booking-status-filter" class="form-select" style="max-width: 20rem">
+                <option value="">All statuses</option>
+                @foreach (var status in Enum.GetValues<BookingStatus>())
+                {
+                    <option value="@status">@status</option>
+                }
+            </select>
+        </div>
+        <div class="table-responsive">
         <table class="table table-striped">
             <thead>
                 <tr>
+                    <th>Actions</th>
                     <th>Date and time</th>
                     <th>Vehicle</th>
                     <th>Garage</th>
@@ -45,7 +63,25 @@ else
             <tbody>
             @foreach (var booking in bookings)
             {
-                <tr>
+                <tr data-booking-status="@booking.Status">
+                    <td class="text-nowrap">
+                        <div class="d-flex flex-wrap gap-2">
+                            @if (booking.Status == BookingStatus.Pending)
+                            {
+                                <form asp-controller="Booking" asp-action="PayNow" asp-route-id="@booking.Id" method="post">
+                                    <button type="submit" class="btn btn-sm btn-primary">Pay Now</button>
+                                </form>
+                                <form asp-controller="Booking" asp-action="Cancel" asp-route-id="@booking.Id" method="post">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Cancel Booking</button>
+                                </form>
+                            }
+                            else
+                            {
+                                <button type="button" class="btn btn-sm btn-primary" disabled>Pay Now</button>
+                                <button type="button" class="btn btn-sm btn-outline-danger" disabled>Cancel Booking</button>
+                            }
+                        </div>
+                    </td>
                     <td>@booking.ScheduledAt.ToString("yyyy-MM-dd HH:mm")</td>
                     <td>@booking.PlateNumber</td>
                     <td>@booking.GarageName</td>
@@ -55,5 +91,27 @@ else
             }
             </tbody>
         </table>
+        </div>
+        <p id="no-bookings-for-status" class="alert alert-info d-none">No bookings match this status.</p>
+
+        @section Scripts {
+            <script>
+                document.getElementById("booking-status-filter")?.addEventListener("change", function () {
+                    const selectedStatus = this.value;
+                    const rows = document.querySelectorAll("[data-booking-status]");
+                    let visibleCount = 0;
+
+                    rows.forEach(row => {
+                        const isVisible = !selectedStatus || row.dataset.bookingStatus === selectedStatus;
+                        row.hidden = !isVisible;
+                        if (isVisible) {
+                            visibleCount++;
+                        }
+                    });
+
+                    document.getElementById("no-bookings-for-status").classList.toggle("d-none", visibleCount > 0);
+                });
+            </script>
+        }
     }
 }

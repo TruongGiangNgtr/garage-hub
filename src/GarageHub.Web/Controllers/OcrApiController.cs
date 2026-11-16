@@ -1,11 +1,14 @@
+using System.Security.Claims;
 using GarageHub.Common.Dtos.Ocr;
 using GarageHub.Common.Exceptions;
 using GarageHub.Service.Ocr;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GarageHub.Web.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/ocr")]
 public class OcrApiController : ControllerBase
 {
@@ -16,7 +19,6 @@ public class OcrApiController : ControllerBase
         _ocrService = ocrService;
     }
 
-    // TODO: add [Authorize] once Google login + cookie auth is configured.
     [HttpPost("scan-plate")]
     public async Task<ActionResult<PlateScanResultDto>> ScanPlate(IFormFile? image, CancellationToken cancellationToken)
     {
@@ -29,8 +31,13 @@ public class OcrApiController : ControllerBase
             throw new ValidationException("File tải lên phải là ảnh");
         }
 
+        if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
+        {
+            throw new InvalidOperationException("The authenticated user has an invalid ID claim.");
+        }
+
         await using var stream = image.OpenReadStream();
-        var result = await _ocrService.ScanPlateAsync(stream, image.FileName, cancellationToken);
+        var result = await _ocrService.ScanPlateAsync(userId, stream, image.FileName, cancellationToken);
         return Ok(result);
     }
 }

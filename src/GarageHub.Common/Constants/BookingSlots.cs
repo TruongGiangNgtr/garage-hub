@@ -15,5 +15,5 @@ public static class BookingSlots
     public static readonly TimeSpan PendingHoldDuration = TimeSpan.FromMinutes(15);
 
     /// <summary>Fixed deposit (VND) charged when a booking is created.</summary>
-    public const decimal DepositAmount = 2000m;
+    public const decimal DepositAmount = 10000m;
 }
