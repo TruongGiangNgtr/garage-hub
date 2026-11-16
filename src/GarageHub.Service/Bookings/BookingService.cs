@@ -113,6 +113,25 @@ public class BookingService : IBookingService
             .ToList();
     }
 
+    public async Task<string> GetPendingBookingCheckoutUrlAsync(
+        int userId, int bookingId, CancellationToken cancellationToken = default)
+    {
+        var booking = await _bookingRepository.GetWithVehicleAsync(bookingId, cancellationToken);
+        if (booking is null || booking.Vehicle.OwnerId != userId)
+        {
+            throw new NotFoundException("Không tìm thấy lịch hẹn");
+        }
+        if (booking.Status != BookingStatus.Pending || booking.ExpiresAt <= VietnamClock.Now)
+        {
+            throw new ConflictException("Lịch hẹn không còn chờ thanh toán hoặc đã hết hạn");
+        }
+
+        var paymentId = await _bookingRepository.GetPendingPaymentIdAsync(
+                bookingId, VietnamClock.Now, cancellationToken)
+            ?? throw new ConflictException("Không tìm thấy khoản thanh toán đang chờ cho lịch hẹn này");
+        return await _paymentService.CreateReplacementCheckoutUrlAsync(paymentId, cancellationToken);
+    }
+
     public async Task CancelBookingAsync(int userId, int bookingId, CancellationToken cancellationToken = default)
     {
         var booking = await _bookingRepository.GetWithVehicleAsync(bookingId, cancellationToken);
@@ -132,7 +151,7 @@ public class BookingService : IBookingService
 
             if (current?.Status == BookingStatus.Canceled) return;
 
-            throw new ConflictException("Lịch hẹn đang được xử lý hoặc đã hoàn thành, không thể hủy");
+            throw new ConflictException("Chỉ có thể hủy lịch hẹn đang chờ thanh toán và chưa thanh toán");
         }
 
         foreach (var paymentId in pendingPaymentIds)
@@ -157,6 +176,7 @@ public class BookingService : IBookingService
         {
             _logger.LogInformation("Expired {Bookings} pending booking(s) and {Payments} pending payment(s)", bookings, payments);
         }
+    }
 
     public async Task<IReadOnlyList<BookingScheduleDto>> GetScheduleForCustomerAsync(
         int customerId, CancellationToken cancellationToken = default)

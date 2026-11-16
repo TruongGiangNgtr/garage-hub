@@ -52,11 +52,20 @@ public class BookingController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> PayNow(int id, CancellationToken cancellationToken)
+    {
+        var checkoutUrl = await _bookingService.GetPendingBookingCheckoutUrlAsync(
+            GetUserId(), id, cancellationToken);
+        return Redirect(checkoutUrl);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Cancel(int id, CancellationToken cancellationToken)
     {
         await _bookingService.CancelBookingAsync(GetUserId(), id, cancellationToken);
         TempData["Message"] = "Đã hủy lịch hẹn.";
-        return RedirectToAction(nameof(Index));
+        return RedirectToAction("Index", "Home");
     }
 
     /// <summary>Users.Id from the auth cookie (ClaimTypes.NameIdentifier).</summary>

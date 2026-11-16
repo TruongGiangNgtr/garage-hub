@@ -1,4 +1,5 @@
 using GarageHub.Common.Enums;
+using GarageHub.Common.Exceptions;
 using GarageHub.Repository.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -47,6 +48,45 @@ public class PaymentRepository : IPaymentRepository
 
         await transaction.CommitAsync(cancellationToken);
         return bookingRows == 0 ? PaymentConfirmResult.ConfirmedBookingNotPending : PaymentConfirmResult.Confirmed;
+    }
+
+    public async Task<int> CreateReplacementPendingAsync(
+        int paymentId, DateTime now, CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await _context.Database.BeginTransactionAsync(
+            System.Data.IsolationLevel.Serializable, cancellationToken);
+
+        var payment = await _context.Payments
+            .Include(p => p.Booking)
+            .FirstOrDefaultAsync(p => p.Id == paymentId, cancellationToken)
+            ?? throw new NotFoundException("Không tìm thấy thanh toán");
+
+        if (payment.Status is not (PaymentStatus.Pending or PaymentStatus.Canceled)
+            || payment.Booking.Status != BookingStatus.Pending
+            || payment.Booking.ExpiresAt is null
+            || payment.Booking.ExpiresAt <= now)
+        {
+            throw new ConflictException("Booking không còn chờ thanh toán hoặc đã hết hạn giữ chỗ");
+        }
+
+        payment.Status = PaymentStatus.Canceled;
+        var replacement = new Payment
+        {
+            BookingId = payment.BookingId,
+            Amount = payment.Amount,
+            Status = PaymentStatus.Pending
+        };
+        _context.Payments.Add(replacement);
+        await _context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return replacement.Id;
+    }
+
+    public async Task CancelPaymentOnlyAsync(int paymentId, CancellationToken cancellationToken = default)
+    {
+        await _context.Payments
+            .Where(p => p.Id == paymentId && p.Status == PaymentStatus.Pending)
+            .ExecuteUpdateAsync(s => s.SetProperty(p => p.Status, PaymentStatus.Canceled), cancellationToken);
     }
 
     public async Task CancelPendingAsync(int paymentId, CancellationToken cancellationToken = default)

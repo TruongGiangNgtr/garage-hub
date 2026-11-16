@@ -111,6 +111,16 @@ public class BookingRepository : IBookingRepository
             .ThenByDescending(b => b.Id)
             .ToListAsync(cancellationToken);
 
+    public Task<int?> GetPendingPaymentIdAsync(
+        int bookingId, DateTime now, CancellationToken cancellationToken = default)
+        => _context.Payments
+            .Where(p => p.BookingId == bookingId
+                && p.Booking.Status == BookingStatus.Pending
+                && p.Booking.ExpiresAt > now)
+            .OrderByDescending(p => p.Id)
+            .Select(p => (int?)p.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
     public Task<ServiceBooking?> GetWithVehicleAsync(int bookingId, CancellationToken cancellationToken = default)
         => _context.ServiceBookings
             .AsNoTracking()
@@ -128,8 +138,7 @@ public class BookingRepository : IBookingRepository
         await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
 
         var bookingRows = await _context.ServiceBookings
-            .Where(b => b.Id == bookingId
-                && (b.Status == BookingStatus.Pending || b.Status == BookingStatus.Confirmed))
+            .Where(b => b.Id == bookingId && b.Status == BookingStatus.Pending)
             .ExecuteUpdateAsync(s => s.SetProperty(b => b.Status, BookingStatus.Canceled), cancellationToken);
         if (bookingRows == 0)
         {

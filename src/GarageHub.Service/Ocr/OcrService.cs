@@ -15,7 +15,8 @@ public class OcrService : IOcrService
         _vehicleRepository = vehicleRepository;
     }
 
-    public async Task<PlateScanResultDto> ScanPlateAsync(Stream image, string fileName, CancellationToken cancellationToken = default)
+    public async Task<PlateScanResultDto> ScanPlateAsync(
+        int ownerId, Stream image, string fileName, CancellationToken cancellationToken = default)
     {
         var read = await _plateRecognizerClient.ReadPlateAsync(image, fileName, cancellationToken);
         if (read is null)
@@ -27,7 +28,8 @@ public class OcrService : IOcrService
 
         // Stored plates may contain separators ("51G-123.45"), so compare without them.
         var matches = await _vehicleRepository.FindAsync(
-            v => v.PlateNumber.Replace("-", "").Replace(".", "").Replace(" ", "").ToUpper() == plate,
+            v => v.OwnerId == ownerId
+                && v.PlateNumber.Replace("-", "").Replace(".", "").Replace(" ", "").ToUpper() == plate,
             cancellationToken);
         var vehicle = matches.FirstOrDefault();
 

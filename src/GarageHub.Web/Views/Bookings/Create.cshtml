@@ -5,7 +5,7 @@
 }
 
 <h1>Book a schedule</h1>
-<p>A 50,000 VND deposit is charged at checkout. Your slot is held for 15 minutes while payment is pending.</p>
+<p>A 10,000 VND deposit is charged at checkout. Your slot is held for 15 minutes while payment is pending.</p>
 <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
 @if (!ViewBag.HasVehicles)
@@ -31,10 +31,10 @@
     </div>
     <div class="mb-3">
         <button type="button" class="btn btn-outline-secondary" id="scan-vehicle-button">
-            Scan vehicle image or credential (OCR coming later)
+            Scan license plate from image
         </button>
-        <input type="file" id="vehicle-image" accept="image/*,.pdf" class="d-none" />
-        <div id="scan-message" class="form-text" role="status"></div>
+        <input type="file" id="vehicle-image" accept="image/*" class="d-none" />
+        <div id="scan-message" class="form-text" role="status" aria-live="polite"></div>
     </div>
     <div class="mb-3">
         @Html.LabelFor(model => model.GarageId, "Garage", new { @class = "form-label" })
@@ -68,13 +68,62 @@
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <script>
-        document.getElementById("scan-vehicle-button")?.addEventListener("click", function () {
-            document.getElementById("vehicle-image").click();
+        const scanButton = document.getElementById("scan-vehicle-button");
+        const imageInput = document.getElementById("vehicle-image");
+        const scanMessage = document.getElementById("scan-message");
+        const vehicleSelect = document.getElementById("VehicleId");
+
+        scanButton.addEventListener("click", function () {
+            imageInput.click();
         });
-        document.getElementById("vehicle-image")?.addEventListener("change", function () {
-            if (this.files.length > 0) {
-                document.getElementById("scan-message").textContent =
-                    "Vehicle scanning is not available yet. Please select your vehicle from the list.";
+
+        imageInput.addEventListener("change", async function () {
+            const image = this.files[0];
+            if (!image) {
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("image", image);
+            scanButton.disabled = true;
+            scanMessage.textContent = "Scanning license plate...";
+
+            try {
+                const response = await fetch("/api/ocr/scan-plate", {
+                    method: "POST",
+                    headers: { "Accept": "application/json" },
+                    body: formData
+                });
+                const result = await response.json();
+                if (!response.ok) {
+                    throw new Error(result.message || "Plate scanning failed. Please try again.");
+                }
+
+                if (!result.plateNumber) {
+                    scanMessage.textContent = "No license plate was detected. Try a clearer image.";
+                    return;
+                }
+
+                const normalizedPlate = result.plateNumber.replace(/[^a-z0-9]/gi, "").toUpperCase();
+                const matchingVehicle = Array.from(vehicleSelect.options).find(option => {
+                    const optionPlate = option.text.split(" - ")[0]
+                        .replace(/[^a-z0-9]/gi, "").toUpperCase();
+                    return option.value && optionPlate === normalizedPlate;
+                });
+
+                if (matchingVehicle) {
+                    vehicleSelect.value = matchingVehicle.value;
+                    scanMessage.textContent = `Detected ${result.plateNumber}; your vehicle was selected.`;
+                } else {
+                    scanMessage.textContent = result.vehicleFound
+                        ? `Detected ${result.plateNumber}, but it is not in your vehicle list. Add it before booking.`
+                        : `Detected ${result.plateNumber}, but it is not in your vehicle list.`;
+                }
+            } catch (error) {
+                scanMessage.textContent = error.message || "Plate scanning failed. Please try again.";
+            } finally {
+                scanButton.disabled = false;
+                imageInput.value = "";
             }
         });
     </script>
