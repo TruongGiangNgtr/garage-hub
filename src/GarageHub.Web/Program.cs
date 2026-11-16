@@ -2,7 +2,7 @@ using System.Security.Claims;
 using System.Threading.RateLimiting;
 using GarageHub.Repository;
 using GarageHub.Service;
-using GarageHub.Web.Controllers;
+using GarageHub.Web.Auth;
 using GarageHub.Web.Middleware;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -90,6 +90,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddRepositoryLayer(builder.Configuration);
 builder.Services.AddServiceLayer();
 builder.Services.AddPaymentModule(builder.Configuration);
+builder.Services.AddGarageHubAuthentication(builder.Configuration);
 
 var app = builder.Build();
 
@@ -105,7 +106,6 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseRouting();
 
-app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
